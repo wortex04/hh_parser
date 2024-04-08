@@ -1,0 +1,5 @@
+.venv
+dist
+build
+parse_hh.egg-info
+.idea

@@ -236,9 +236,17 @@ def pages_parsing(url, page_count):
     current_page = url
     data = []
     for page in tqdm(range(page_count)):
-        urls, next_page = get_resumes_urls(current_page)
+        try:
+            urls, next_page = get_resumes_urls(current_page)
+        except Exception as e:
+            print(e)
+            continue
         for res_url in urls:
-            data.append(parsing(res_url))
+            try:
+                data.append(parsing(res_url))
+            except Exception as e:
+                print(e)
+                continue
 
         current_page = next_page
     return data
