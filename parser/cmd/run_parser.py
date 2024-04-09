@@ -7,7 +7,7 @@ def main(url, pages_num, file_name):
 
 if __name__ == '__main__':
     URL = 'https://hh.ru/search/resume'
-    PAGES_NUM = 1
+    PAGES_NUM = 2
     main(URL, PAGES_NUM, 'data_json.resume')
 
 

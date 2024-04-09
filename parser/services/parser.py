@@ -3,7 +3,7 @@ import requests
 import json
 import re
 from bs4 import BeautifulSoup
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Tuple, Optional
 import sys
 import os
 from tqdm.auto import tqdm
@@ -18,8 +18,12 @@ HEADERS= {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/5
 
 def get_resumes_urls(url: str) -> Dict[str, Union[List[str], str]]:
     '''
-    gives a list of urls to get resumes
-    links take from search pages
+    Retrieves a list of URLs for fetching resumes.
+    Args:
+        url (str): URL of the search results page.
+
+    Returns:
+        Dict[str, Union[List[str], str]]: Dictionary containing resume URLs and the URL of the next page.
     '''
     response = requests.get(url, headers=HEADERS)
     page_html = BeautifulSoup(response.content,'html.parser')
@@ -33,6 +37,13 @@ def get_resumes_urls(url: str) -> Dict[str, Union[List[str], str]]:
     return urls, next_page
 
 def get_html(url: str) -> BeautifulSoup:
+    '''
+        Fetches the HTML code of a page from the given URL and returns it as a BeautifulSoup object.
+        Args:
+            url (str): URL of the page.
+        Returns:
+            BeautifulSoup: BeautifulSoup object containing the HTML code of the page.
+        '''
     response = requests.get(url, headers=HEADERS)
     resume_page = BeautifulSoup(response.content,'html.parser')
     req_info = (resume_page.find_all('div', {
@@ -42,7 +53,14 @@ def get_html(url: str) -> BeautifulSoup:
     info = req_info.find_all('div', {'class': 'bloko-columns-row'})
     return info
 
-def get_general_info(html):
+def get_general_info(html: BeautifulSoup) -> Tuple[str, str, str, str]:
+    '''
+        Extracts general information about the single worker from the HTML code of the page.
+        Args:
+            html (BeautifulSoup): HTML code of the page containing candidate information.
+        Returns:
+            tuple: Tuple containing general information about the candidate (job title, specialization, employment type, work schedule).
+        '''
     position_element = html[0].find('span', class_='resume-block__title-text')
     job = position_element.text.strip()
     specialization= re.search(r'Специализации:\s*(.*?)\s*Занятость:', html[1].text).group(1)
@@ -50,7 +68,15 @@ def get_general_info(html):
     schedule = re.search(r'График работы:\s*(.*?)$', html[1].text).group(1)
     return job, specialization, employment, schedule
 
-def get_experience(html, position):
+def get_experience(html: BeautifulSoup, position: int) -> Tuple[int, str, List[Experience]]:
+    '''
+    Extracts experience information about the worker from the HTML code of the page.
+    Args:
+        html (BeautifulSoup): The HTML code of the page containing worker's experience information.
+        position (int): The current position in the HTML code.
+    Returns:
+        Tuple[int, str, List[Experience]]: A tuple containing the updated position, experience status, and a list of Experience objects.
+    '''
     exp = None
     if 'Опыт работы' in html[position].text:
         exp = []
@@ -79,7 +105,16 @@ def get_experience(html, position):
     return position, expirience, exp
 
 
-def get_skills_myself(html, position):
+def get_skills_myself(html: BeautifulSoup, position: int) -> Tuple[int, str, List[str]]:
+    '''
+    Extracts skills and self-description of the worker from the HTML code of the page and skip useless
+    info about worker.
+    Args:
+        html (BeautifulSoup): The HTML code of the page containing worker's skills and self-description.
+        position (int): The current position in the HTML code.
+    Returns:
+        Tuple[int, str, List[str]]: A tuple containing the updated position, self-description, and a list of key skills.
+    '''
     key_skills = ['']
     if 'Ключевые навыки' in html[position].text:
         key_skills = []
@@ -97,7 +132,15 @@ def get_skills_myself(html, position):
         position += 2
     return position, my_self, key_skills
 
-def get_education(html, position):
+def get_education(html: BeautifulSoup, position: int) -> Tuple[int, str, List[Education]]:
+    '''
+    Extracts education information of the worker from the HTML code of the page.
+    Args:
+        html (BeautifulSoup): The HTML code of the page containing worker's education information.
+        position (int): The current position in the HTML code.
+    Returns:
+        Tuple[int, str, List[Education]]: A tuple containing the updated position, education level, and a list of Education objects.
+    '''
     helper = position
     education = None
     education_level = ''
@@ -132,7 +175,15 @@ def get_education(html, position):
     position += 1
     return position, education_level, education
 
-def get_language(html, position):
+def get_language(html: BeautifulSoup, position: int) -> Tuple[int, List[Language]]:
+    '''
+    Extracts language information of the worker from the HTML code of the page.
+    Args:
+        html (BeautifulSoup): The HTML code of the page containing worker's language information.
+        position (int): The current position in the HTML code.
+    Returns:
+        Tuple[int, List[Language]]: A tuple containing the updated position and a list of Language objects.
+    '''
     language_tags = html[position].find_all('p', {'data-qa': 'resume-block-language-item'})
 
     languages_info = []
@@ -148,7 +199,16 @@ def get_language(html, position):
     position += 1
     return position, languages_info
 
-def get_extra_education(html, position):
+def get_extra_education(html: BeautifulSoup, position: int) -> Tuple[int, Optional[List[ExtraEducation]]]:
+    '''
+    Extracts extra education information of the worker from the HTML code of the page.
+    Args:
+        html (BeautifulSoup): The HTML code of the page containing worker's extra education information.
+        position (int): The current position in the HTML code.
+    Returns:
+        Tuple[int, Optional[List[ExtraEducation]]]: A tuple containing the updated position and a list of ExtraEducation objects,
+        or None if there is no extra education information.
+    '''
     extra_education = None
     if 'Повышение квалификации, курсы' in html[position].text:
         extra_education = []
@@ -171,7 +231,16 @@ def get_extra_education(html, position):
 
     return position, extra_education
 
-def get_tests(html, position):
+def get_tests(html: BeautifulSoup, position: int) -> Tuple[int, Optional[List[Test]]]:
+    '''
+    Extracts test and examination information of the worker from the HTML code of the page.
+    Args:
+        html (BeautifulSoup): The HTML code of the page containing worker's test and examination information.
+        position (int): The current position in the HTML code.
+    Returns:
+        Tuple[int, Optional[List[Test]]]: A tuple containing the updated position and a list of Test objects,
+        or None if there is no test and examination information.
+    '''
     tests = None
     if 'Тесты, экзамены' in html[position].text:
         tests = []
@@ -193,7 +262,15 @@ def get_tests(html, position):
     position += 1
     return position, tests
 
-def get_other(html, position):
+def get_other(html: BeautifulSoup, position: int) -> str:
+    '''
+    Extracts other miscellaneous information of the worker from the HTML code of the page.
+    Args:
+        html (BeautifulSoup): The HTML code of the page containing other miscellaneous information.
+        position (int): The current position in the HTML code.
+    Returns:
+        str: Other miscellaneous information of the worker.
+    '''
     paragraphs = html[position].find('div', class_='resume-block-container').find_all('p')
     text_list = []
     for paragraph in paragraphs:
@@ -202,7 +279,14 @@ def get_other(html, position):
     result_text = ' '.join(text_list)
     return result_text
 
-def parsing(url):
+def parsing(url: str) -> Resume:
+    '''
+    Parses the worker's resume information from the given URL.
+    Args:
+        url (str): The URL of the worker's resume.
+    Returns:
+        Resume: A Resume object containing the parsed information.
+    '''
     html = get_html(url)
     position = 2
     job, specialization, employment, schedule = get_general_info(html)
@@ -232,7 +316,15 @@ def parsing(url):
     return resume
 
 
-def pages_parsing(url, page_count):
+def pages_parsing(url: str, page_count: int) -> List[Resume]:
+    '''
+    Parses resumes from multiple pages of search results.
+    Args:
+        url (str): The URL of the initial search page.
+        page_count (int): The number of pages to parse.
+    Returns:
+        List[Resume]: A list of Resume objects containing the parsed information.
+    '''
     current_page = url
     data = []
     for page in tqdm(range(page_count)):
