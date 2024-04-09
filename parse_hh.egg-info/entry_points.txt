@@ -1,2 +1,0 @@
-[console_scripts]
-hh_parse = parser.cmd.run_parse:main
